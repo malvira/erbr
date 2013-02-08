@@ -8,4 +8,15 @@ is used instead of httpd-simple.
 https://github.com/malvira/rplinfo for more information about
 `rplinfo`
 
+Setup and Building
+==================
+
+``` 
+git clone https://github.com/malvira/erbr.git
+cd erbr
+git submodule update --init
+make TARGET=econotag
+```
+
+
 
