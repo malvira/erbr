@@ -1,7 +1,7 @@
 CONTIKI_PROJECT=erbr
 all: $(CONTIKI_PROJECT) 
 
-CONTIKI=../contiki
+CONTIKI=./contiki
 
 APPS += er-coap-07 erbium
 
