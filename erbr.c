@@ -111,8 +111,6 @@ config_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
     /* do clean-up actions */
     /* save the config and reset ourself */
     mc1322x_config_save(&mc1322x_config);
-    CRM->SW_RST = 0x87651234;
-    while (1) { continue; }
       
   } else { /* GET */
     uint8_t n;
