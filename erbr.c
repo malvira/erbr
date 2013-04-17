@@ -54,6 +54,90 @@
 #define DEBUG DEBUG_NONE
 #include "net/uip-debug.h"
 
+/* coap */
+#if WITH_COAP == 3
+#include "er-coap-03-engine.h"
+#elif WITH_COAP == 6
+#include "er-coap-06-engine.h"
+#elif WITH_COAP == 7
+#include "er-coap-07-engine.h"
+#else
+#error "CoAP version defined by WITH_COAP not implemented"
+#endif
+
+/* mc1322x */
+#include "mc1322x.h"
+#include "config.h"
+
+RESOURCE(config, METHOD_GET | METHOD_POST , "config", "title=\"Config parameters\";rt=\"Data\"");
+
+void
+config_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
+{
+  void *param;
+  uip_ipaddr_t *new_addr;
+  const char *pstr;
+  size_t len = 0;
+  
+  if ((len = REST.get_query_variable(request, "param", &pstr))) {
+    if(strncmp(pstr, "channel", len) == 0) {
+      param = &mc1322x_config.channel;
+    } else if (strncmp(pstr, "serial", len) == 0) {
+      param = &mc1322x_config.eui;
+    } else if(strncmp(pstr, "eui", len) == 0) {
+      param = &mc1322x_config.eui;
+    } else {
+      goto bad;
+    }
+  } else {
+    goto bad;
+  }
+
+  if (REST.get_method_type(request) == METHOD_POST) {
+    const uint8_t *new;
+    uint32_t serial;
+    REST.get_request_payload(request, &new);
+    if(strncmp(pstr, "channel", len) == 0) {
+      *(uint8_t *)param = (uint8_t)atoi(new) - 11;
+    } else if(strncmp(pstr, "serial", len) == 0) {
+      serial = (uint8_t)atoi(new);
+      *(uint64_t *)param = (0xEC473C4D12ull << 24) | serial;
+    } else if(strncmp(pstr, "eui", len) == 0) {
+      *(uint64_t *)param = (uint8_t)atoi(new);
+    } else {
+      goto bad;
+    }
+
+    /* do clean-up actions */
+    /* save the config and reset ourself */
+    mc1322x_config_save(&mc1322x_config);
+    CRM->SW_RST = 0x87651234;
+    while (1) { continue; }
+      
+  } else { /* GET */
+    uint8_t n;
+    if (strncmp(pstr, "channel", len) == 0) {
+      n = sprintf(buffer, "%d", *(uint8_t *)param + 11);
+    } else if (strncmp(pstr, "eui", len) == 0) {
+      n = sprintf(buffer, "%08X%08X", (uint32_t)(*(uint64_t *)param >> 32), (uint32_t)(*(uint64_t *)param));
+    } else if (strncmp(pstr, "serial", len) == 0) {
+      uint32_t serial;
+      serial = (uint32_t)(*(uint64_t *)param & 0x0000000000ffffffull);
+      n = sprintf(buffer, "%d", serial);
+    } else {
+      goto bad;
+    }
+    REST.set_response_payload(response, buffer, n);
+  }
+
+  return;
+
+bad:
+  REST.set_response_status(response, REST.status.BAD_REQUEST);
+
+}
+
+
 uint16_t dag_id[] = {0x1111, 0x1100, 0, 0, 0, 0, 0, 0x0011};
 
 extern uip_ds6_nbr_t uip_ds6_nbr_cache[];
@@ -160,6 +244,7 @@ PROCESS_THREAD(border_router_process, ev, data)
   rest_init_engine();
 
   rplinfo_activate_resources();
+  rest_activate_resource(&resource_config);
 
   while(1) {
     PROCESS_YIELD();
