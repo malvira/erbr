@@ -100,7 +100,7 @@ config_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
     if(strncmp(pstr, "channel", len) == 0) {
       *(uint8_t *)param = (uint8_t)atoi(new) - 11;
     } else if(strncmp(pstr, "serial", len) == 0) {
-      serial = (uint8_t)atoi(new);
+      serial = (uint32_t)atoi(new);
       *(uint64_t *)param = (0xEC473C4D12ull << 24) | serial;
     } else if(strncmp(pstr, "eui", len) == 0) {
       *(uint64_t *)param = (uint8_t)atoi(new);
@@ -122,7 +122,7 @@ config_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
       n = sprintf(buffer, "%08X%08X", (uint32_t)(*(uint64_t *)param >> 32), (uint32_t)(*(uint64_t *)param));
     } else if (strncmp(pstr, "serial", len) == 0) {
       uint32_t serial;
-      serial = (uint32_t)(*(uint64_t *)param & 0x0000000000ffffffull);
+      serial = (uint32_t)(*(uint64_t *)param) & 0xffffff;
       n = sprintf(buffer, "%d", serial);
     } else {
       goto bad;
