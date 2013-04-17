@@ -103,7 +103,7 @@ config_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
       serial = (uint32_t)atoi(new);
       *(uint64_t *)param = (0xEC473C4D12ull << 24) | serial;
     } else if(strncmp(pstr, "eui", len) == 0) {
-      *(uint64_t *)param = strtoll(new, NULL, 16);
+      *(uint64_t *)param = strtoull(new, NULL, 16);
     } else {
       goto bad;
     }
