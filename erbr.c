@@ -193,6 +193,12 @@ PROCESS_THREAD(border_router_process, ev, data)
 {
   static struct etimer et;
   rpl_dag_t *dag;
+	static uint8_t led;
+
+	GPIO->FUNC_SEL.ADC0 = 3;
+	GPIO->PAD_DIR.ADC0 = 1;
+	gpio_reset(ADC0);
+	led = 1;
 
   PROCESS_BEGIN();
 
@@ -219,9 +225,16 @@ PROCESS_THREAD(border_router_process, ev, data)
  
   /* Request prefix until it has been received */
   while(!prefix_set) {
-    etimer_set(&et, CLOCK_SECOND);
+    etimer_set(&et, 0.5 * CLOCK_SECOND);
     request_prefix();
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+		if(led) {
+			led = 0;
+			gpio_set(ADC0);
+		} else {
+			led = 1;
+			gpio_reset(ADC0);
+		}
   }
 
   dag = rpl_set_root(RPL_DEFAULT_INSTANCE,(uip_ip6addr_t *)dag_id);
@@ -229,6 +242,8 @@ PROCESS_THREAD(border_router_process, ev, data)
     rpl_set_prefix(dag, &prefix, 64);
     PRINTF("created a new RPL dag\n");
   }
+
+	gpio_reset(ADC0);
 
   /* Now turn the radio on, but disable radio duty cycling.
    * Since we are the DAG root, reception delays would constrain mesh throughbut.

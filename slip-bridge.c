@@ -45,6 +45,8 @@
 #include "dev/uart1.h"
 #include <string.h>
 
+#include "mc1322x.h"
+
 #define UIP_IP_BUF        ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
 
 #define DEBUG DEBUG_PRINT
@@ -52,11 +54,28 @@
 
 void set_prefix_64(uip_ipaddr_t *);
 
+static uint8_t led_time;
+
+#define ACT_TIME 2
+
+void
+add_time(uint8_t time) {
+	if (led_time + time > (0.4 * CLOCK_SECOND)) {
+		led_time = 0.4 * CLOCK_SECOND;
+	} else {
+		led_time += time;
+	}
+}
+
+
 static uip_ipaddr_t last_sender;
 /*---------------------------------------------------------------------------*/
 static void
 slip_input_callback(void)
 {
+
+	add_time(ACT_TIME);
+
   PRINTF("SIN: %u\n", uip_len);
   if(uip_buf[0] == '!') {
     PRINTF("Got configuration message of type %c\n", uip_buf[1]);
@@ -91,19 +110,56 @@ slip_input_callback(void)
   /* Save the last sender received over SLIP to avoid bouncing the
      packet back if no route is found */
   uip_ipaddr_copy(&last_sender, &UIP_IP_BUF->srcipaddr);
+
 }
 /*---------------------------------------------------------------------------*/
+
+PROCESS(act_led, "Activity Led");
+PROCESS_THREAD(act_led, ev, data)
+{
+  static struct etimer et;
+	static uint8_t led;
+	gpio_reset(ADC0);
+	led = 1;
+
+	PROCESS_BEGIN();
+
+	while(1) {
+
+		
+		if (led_time > 0) {
+			gpio_set(ADC0);
+			
+			etimer_set(&et, led_time);
+			PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+			led_time = 0;
+
+			gpio_reset(ADC0);
+		}
+
+    etimer_set(&et, 0.1 * CLOCK_SECOND);
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+
+	}
+
+	PROCESS_END();
+}
+
+
 static void
 init(void)
 {
   slip_arch_init(BAUD2UBR(115200));
   process_start(&slip_process, NULL);
+  process_start(&act_led, NULL);
   slip_set_input_callback(slip_input_callback);
 }
 /*---------------------------------------------------------------------------*/
 static void
 output(void)
 {
+	add_time(ACT_TIME);
+
   if(uip_ipaddr_cmp(&last_sender, &UIP_IP_BUF->srcipaddr)) {
     /* Do not bounce packets back over SLIP if the packet was received
        over SLIP */
@@ -126,6 +182,8 @@ putchar(int c)
 #define SLIP_END     0300
   static char debug_frame = 0;
 
+	add_time(ACT_TIME);
+
   if(!debug_frame) {            /* Start of debug output */
     slip_arch_writeb(SLIP_END);
     slip_arch_writeb('\r');     /* Type debug line == '\r' */
@@ -144,6 +202,7 @@ putchar(int c)
     slip_arch_writeb(SLIP_END);
     debug_frame = 0;
   }
+
   return c;
 }
 /*---------------------------------------------------------------------------*/
