@@ -135,9 +135,6 @@ bad:
 
 }
 
-
-uint16_t dag_id[] = {0x1111, 0x1100, 0, 0, 0, 0, 0, 0x0011};
-
 extern uip_ds6_nbr_t uip_ds6_nbr_cache[];
 
 static uip_ipaddr_t prefix;
@@ -193,6 +190,7 @@ PROCESS_THREAD(border_router_process, ev, data)
 {
   static struct etimer et;
   rpl_dag_t *dag;
+	uip_ds6_addr_t *addr;
 	static uint8_t led;
 
 	GPIO->FUNC_SEL.ADC0 = 3;
@@ -237,7 +235,8 @@ PROCESS_THREAD(border_router_process, ev, data)
 		}
   }
 
-  dag = rpl_set_root(RPL_DEFAULT_INSTANCE,(uip_ip6addr_t *)dag_id);
+	addr = uip_ds6_get_global(-1);
+  dag = rpl_set_root(RPL_DEFAULT_INSTANCE, &(addr->ipaddr));
   if(dag != NULL) {
     rpl_set_prefix(dag, &prefix, 64);
     PRINTF("created a new RPL dag\n");
